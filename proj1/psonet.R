@@ -17,7 +17,8 @@ config <- c(
   n.h.layers = 2, # the number of layers in the hidden layer
   pso.n.pop = 2,  # the size of the population in pso
   pso.w = .74,    # the inertia for the pso optimization
-  pso.c1 = 2.5,   # constant 1 for pso optimization
+  pso.c1 = 2.5,   # the acceleration factor related to gbest for pso
+  pso.c2 = 2.5,   # the acceleration factor related to pbest for pso
   pso.iter = 2,   # the number of iterations to run pso
   w.min = 0,      # the min value for any weight
   w.max = 1,      # the max value for any weight
@@ -34,12 +35,7 @@ config <- c(
 #   X - a matrix of the training data inputs
 #   W - a list of weight matrices. is expected to have structure as provided below
 #   T - a matrix of the expected output training data
-#   config - named vector that contains the following members:
-#     n.inputs - the number of inputs in the ANN
-#     n.hiddens - the number of nuerons for each hidden layer
-#     n.outputs - the number of nuerons in the output layer
-#     n.h.layers - number of hidden layers in the ANN
-#     act.func - the activation function for each neuron
+#   config - a configuation named list
 # 
 #  W vector structure: 
 #   assume n.i = number of inputs, n.h = number of neurons/hidden layer, n.o = number of neurons/output layer
@@ -105,35 +101,78 @@ init.matrix.list <- function(config, lb, ub) {
 pso <- function(X, T, config) {
   # initialize initial population of weights and associated vectors
   n <- config[["pso.n.pop"]] # the size of the population
-  pop <- list()            # the populations of weights
-  V <- list()              # list of the velocities for each member of the population
-  p.best <- list()         # list of the personal best weight configuration for each member of the population
-  p.best.fitness <- list() # list of the fitness value for each personal best weight configuration for each mem of the pop
-  g.best <- NULL           # the global best weight configuration for all members of the population
-  g.best.fitness <- NULL   # the fitness value for the global best weight configuation for all members of the population
-  update.init.vars <- function() { 
-    i <- length(pop)
+  pop <- list()              # the populations of weights
+  V <- list()                # list of the velocities for each member of the population
+  p.best <- list()           # list of the personal best weight configuration for each member of the population
+  p.best.fitness <- list()   # list of the fitness value for each personal best weight configuration for each mem of the pop
+  g.best <- NULL             # the global best weight configuration for all members of the population
+  g.best.fitness <- NULL     # the fitness value for the global best weight configuation for all members of the population
+  iter = config[["pso.iter"]]# the number of iterations to update the population 
+  
+  for (i in 1:n) { 
     pop[[i]] <- init.weights(config)
     V[[i]] <- init.vectors(config)
-    p.best[[i]] <- pop[[i]]
-    p.best.fitness[[i]] <- fitness(X, pop[[i]], T)
-    
-    # is this the global best of the population?
-    if (is.null(g.best) || p.best.fitness[[i]] < g.best.fitness) {
-      g.best <- pop[[i]]
-      g.best.fitness <- fitness(X, g.best, T)
+    p.best[[i]] <- NULL
+    p.best.fitness[[i]] <- NULL
+  }
+  
+  # update the particle velocity and position for each particle
+  
+  for (j in 1:iter) {
+    for (i in 1:n) {
+      # if the fitness value is t
+      if (length(p.best) < i) {
+        p.best[[i]] <- pop[[i]]
+        p.best.fitness[[i]] <- fitness(X, pop[[i]], T, config)
+      } else {
+        f <- fitness(X, pop[[i]], T, config)
+        if (f < p.best.fitness[[i]]) {
+          p.best[[i]] <- pop[[i]]
+          p.best.fitness[[i]] <- f
+        }
+      }
+      
+      if (is.null(g.best) || p.best.fitness[[i]] < g.best.fitness) {
+        g.best <- pop[[i]]
+        g.best.fitness <- fitness(X, g.best, T, config)
+      }
+      
+      V[[i]] <- pso.update.velocity(V[[i]], p.best[[i]], g.best, pop[[i]], config)
+      pop[[i]] <- pso.update.position(pop[[i]], V[[i]])
     }
   }
-  rep(update.init.vars, n)
+}
+
+pso.update.velocity <- function(V, p.best, g.best, pos, config) {
+  w = config[["pso.w"]]      # the interia constant for pso
+  c1 = config[["pso.c1"]]    # the acceleration factor related to gbest
+  c2 = config[["pso.c2"]]    # the acceleration factor related to pbest
+  lb = config[["v.min"]]     # the lower bound for any velocity
+  ub = config[["v.max"]]     # the upper bound for any velocity
   
-  update.pop <- function() {
-    # determine the random values
-    rand <- runif(n*2, 0, 1) # generate 2 random numbers between 0 and 1 for each member of the population
-    # calculate the fitness value
-    if ()
+  # generate 2 random numbers (rand1 and rand2) between 0 and 1
+  rand <- runif(2, 0, 1)
+  # update all of the velocities using the pso velocity update function
+  # clip the velocities if their updated values go out of the upper/lower bounds
+  for(i in 1:length(V))
+    V[[i]] <- w * V[[i]] + (c1*rand[[1]]) * (p.best[[i]] - pos[[i]]) + (c2*rand[[2]]) * (g.best[[i]] - pos[[i]])
+    V[[i]][V[[i]] < lb] <- lb
+    V[[i]][V[[i]] > ub] <- ub
+  return(V)
+}
+
+pso.update.position <- function(pos, V) {
+  lb = config[["w.min"]] # the lower bound for any weight
+  ub = config[["w.max"]] # the upper bound for any weight
+  
+  # update all of the weights using the pso position update function
+  # clip the weights if their updated values go out of the upper/lower bounds
+  for (i in 1:length(pos)) {
+    pos[[i]] = pos[[i]] + V[[i]]
+    pos[[i]][pos[[i]] < lb] <- lb
+    pos[[i]][pos[[i]] > ub] <- ub
   }
-  
-  
+  return(pos)
 }
 
 init.weights <- function(config) {
