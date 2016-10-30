@@ -11,11 +11,6 @@ library("pso")
 library("plyr")
 library("sigmoid")
 
-# create the training data for a XOR gate
-xor.output <- matrix(c(0, 1, 1, 0), ncol=1)
-xor.input <- matrix(c(0,0,1,1,0,1,0,1), ncol=2)
-
-
 #################### CONFIGURATION ###################################
 # configuration for neural network and pso
 config <- c(
@@ -31,9 +26,36 @@ config <- c(
   w.min = 0,         # the min value for any weight
   w.max = 1,         # the max value for any weight
   v.min = -1,        # the min value for any velocity
-  v.max = 1          # the max value for any velocity
+  v.max = 1,         # the max value for any velocity
+  verbose = TRUE     # should the output be verbose?
 )
 ############################################################################
+
+#==============================================================
+# pso.xor.demo
+# -------------------------------------------------------------
+# perform a demostration of training an ANN on XOR inputs/outputs
+# using pso algorithm for generating the best weight configuration.
+# Details of the ANN are as provided in the config named vector (above).
+# Prints the best weight configuation and its fitness value after
+# the number of iterations of the pso have been executed.
+# -------------------------------------------------------------
+pso.xor.demo <- function() {
+  
+  # create the training data for a XOR gate
+  xor.output <- matrix(c(0, 1, 1, 0), ncol=1)
+  xor.input <- matrix(c(0,0,1,1,0,1,0,1), ncol=2)
+  
+  # determine the best weight configuration using pso.
+  best.W <- pso(xor.input, xor.output, config)
+  best.fitness <- fitness(xor.input, best.W, xor.output, config)
+   
+  # present the results
+  print(paste(c("best fitness: ", best.fitness)))
+  print("---------------------------------------")
+  print("weight configuration:")
+  print(best.W)
+}
 
 #==============================================================
 # fitness
@@ -170,14 +192,15 @@ init.velocities <- function(config) {
 # -------------------------------------------------------------
 pso <- function(X, T, config) {
   # initialize initial population of weights and associated vectors
-  n <- config[["pso.n.pop"]] # the size of the population
-  pop <- list()              # the populations of weights
-  V <- list()                # list of the velocities for each member of the population
-  p.best <- list()           # list of the personal best weight configuration for each member of the population
-  p.best.fitness <- list()   # list of the fitness value for each personal best weight configuration for each mem of the pop
-  g.best <- NULL             # the global best weight configuration for all members of the population
-  g.best.fitness <- NULL     # the fitness value for the global best weight configuation for all members of the population
-  iter = config[["pso.iter"]]# the number of iterations to update the population 
+  n <- config[["pso.n.pop"]]   # the size of the population
+  pop <- list()                # the populations of weights
+  V <- list()                  # list of the velocities for each member of the population
+  p.best <- list()             # list of the personal best weight configuration for each member of the population
+  p.best.fitness <- list()     # list of the fitness value for each personal best weight configuration for each mem of the pop
+  g.best <- NULL               # the global best weight configuration for all members of the population
+  g.best.fitness <- NULL       # the fitness value for the global best weight configuation for all members of the population
+  iter = config[["pso.iter"]]  # the number of iterations to update the population 
+  debug <- config[["verbose"]] # is this running in debug mode?
   
   # initialize the population and velocities for each member of the population
   for (i in 1:n) { 
@@ -188,24 +211,35 @@ pso <- function(X, T, config) {
   }
   
   for (j in 1:iter) { # do for each iteration of the 
+    if (debug) { print(paste(c('pso iteration: ', j)))}
     for (i in 1:n) { # do for each member of the population
       # calculate the fitness value
       if (length(p.best) < i) {
         p.best[[i]] <- pop[[i]]
         p.best.fitness[[i]] <- fitness(X, pop[[i]], T, config)
+        if (debug) {
+          print(paste(c("particle", i, " --> p.best fitness = ", p.best.fitness[[i]])))
+        }
       } else {
         # is this the new personal best for this member?
         f <- fitness(X, pop[[i]], T, config)
         if (f < p.best.fitness[[i]]) {
           p.best[[i]] <- pop[[i]]
           p.best.fitness[[i]] <- f
+          if (debug) {
+            print(paste(c("particle", i, " --> p.best fitness = ", p.best.fitness[[i]])))
+          }
         }
+        
       }
       
       # is the personal best for this member the global best for the swarm?
       if (is.null(g.best) || p.best.fitness[[i]] < g.best.fitness) {
         g.best <- pop[[i]]
         g.best.fitness <- fitness(X, g.best, T, config)
+        if (debug) {
+          print(paste(c("swarm", i, " --> g.best fitness = ", g.best.fitness)))
+        }
       }
       
       # update the new velocity and position for this member.
@@ -275,7 +309,8 @@ pso.update.position <- function(pos, V, config) {
   return(pos)
 }
 
-
+# if running as script, execute xor demo
+pso.xor.demo()
 
 
 
