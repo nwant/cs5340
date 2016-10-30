@@ -5,10 +5,8 @@
 # November 4, 2016
 
 install.packages('pso')
-install.packages('plyr')
 install.packages('sigmoid')
 library("pso")
-library("plyr")
 library("sigmoid")
 
 #################### CONFIGURATION ###################################
@@ -51,9 +49,11 @@ pso.xor.demo <- function() {
   best.fitness <- fitness(xor.input, best.W, xor.output, config)
    
   # present the results
-  print(paste(c("best fitness: ", best.fitness)))
-  print("---------------------------------------")
-  print("weight configuration:")
+  cat("\n")
+  cat("---------------RESULTS------------\n")
+  cat("best fitness: ", best.fitness, "\n")
+  cat("---------------------------------------\n")
+  cat("weight configuration:\n")
   print(best.W)
 }
 
@@ -211,14 +211,14 @@ pso <- function(X, T, config) {
   }
   
   for (j in 1:iter) { # do for each iteration of the 
-    if (debug) { print(paste(c('pso iteration: ', j)))}
+    if (debug) { cat("pso iteration:", j[[1]], "\n")}
     for (i in 1:n) { # do for each member of the population
       # calculate the fitness value
       if (length(p.best) < i) {
         p.best[[i]] <- pop[[i]]
         p.best.fitness[[i]] <- fitness(X, pop[[i]], T, config)
         if (debug) {
-          print(paste(c("particle", i, " --> p.best fitness = ", p.best.fitness[[i]])))
+          cat("particle", i, ": p.best fitness -->", p.best.fitness[[i]], "\n")
         }
       } else {
         # is this the new personal best for this member?
@@ -226,19 +226,26 @@ pso <- function(X, T, config) {
         if (f < p.best.fitness[[i]]) {
           p.best[[i]] <- pop[[i]]
           p.best.fitness[[i]] <- f
+          print(f)
           if (debug) {
-            print(paste(c("particle", i, " --> p.best fitness = ", p.best.fitness[[i]])))
+            cat("particle", i, ": p.best fitness -->", p.best.fitness[[i]], "\n")
           }
         }
         
       }
       
       # is the personal best for this member the global best for the swarm?
-      if (is.null(g.best) || p.best.fitness[[i]] < g.best.fitness) {
+      if (is.null(g.best)) {
         g.best <- pop[[i]]
         g.best.fitness <- fitness(X, g.best, T, config)
         if (debug) {
-          print(paste(c("swarm", i, " --> g.best fitness = ", g.best.fitness)))
+          cat("swarm: g.best fitness --> ", g.best.fitness, "\n")
+        }
+      } else if(p.best.fitness[[i]] < g.best.fitness) {
+        g.best <- pop[[i]]
+        g.best.fitness <- fitness(X, g.best, T, config)
+        if (debug) {
+          cat("swarm: g.best fitness --> ", g.best.fitness, "\n")
         }
       }
       
@@ -311,13 +318,3 @@ pso.update.position <- function(pos, V, config) {
 
 # if running as script, execute xor demo
 pso.xor.demo()
-
-
-
-
-
-
-
-
-
-
